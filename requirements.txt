@@ -1,0 +1,52 @@
+langchain
+langchain-community
+langchain-ollama
+langchain-chroma
+langchain-qdrant  # Official Qdrant integration for LangChain
+ollama
+tqdm
+requests
+fastapi
+uvicorn
+openai
+sentence-transformers
+python-dotenv
+pydantic-settings
+pytest
+pytest-asyncio
+
+# PDF Processing
+PyMuPDF
+pdfplumber
+pypdf
+python-docx
+
+# Document Processing
+unstructured
+tiktoken
+beautifulsoup4  # HTML parsing
+
+# Vietnamese NLP
+pyvi
+underthesea>=1.3.5
+
+# Data Processing
+pandas
+
+# Object Storage
+minio
+
+# NLP Libraries
+nltk>=3.8.1
+rank-bm25>=0.2.2
+langdetect>=1.0.9
+
+# Data Processing
+numpy>=1.24.0
+pydantic>=2.0.0
+
+# MongoDB
+motor>=3.3.2
+pymongo>=4.6.1
+
+python-multipart
