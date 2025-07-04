@@ -168,12 +168,6 @@ class PromptTemplateIdea(BaseModel):
     """Schema cho request gợi ý prompt template từ ý tưởng."""
 
     idea: str = Field(description="Ý tưởng/mục đích của prompt template")
-    context: Optional[Dict[str, Any]] = Field(
-        None, description="Context bổ sung cho việc gợi ý"
-    )
-    language: str = Field(
-        default="vi", description="Ngôn ngữ muốn sinh prompt template"
-    )
 
 
 class PromptTemplateSuggestion(BaseModel):
@@ -356,53 +350,28 @@ class GlobalSettings(BaseModel):
 
     id: str = Field(default="global", description="ID của settings")
 
-    # Language settings
-    default_language: str = Field("vi", description="Ngôn ngữ mặc định")
-
     # System prompt settings
     system_prompt: Optional[str] = Field(
         None, description="System prompt mặc định cho chat"
-    )
-
-    # LLM settings
-    llm_settings: Dict[str, Any] = Field(
-        default_factory=lambda: {
-            "temperature": 0.7,
-            "max_tokens": 2000,
-        },
-        description="Settings cho LLM",
-    )
-
-    # Search settings
-    search_settings: Dict[str, Any] = Field(
-        default_factory=lambda: {
-            "k": 5,
-            "score_threshold": 0.3,
-            "bm25_weight": 0.3,
-            "vector_weight": 0.7,
-        },
-        description="Settings cho search",
     )
 
     # Knowledge base settings
     available_collections: List[str] = Field(
         default_factory=list, description="Danh sách các knowledge bases có thể sử dụng"
     )
-    default_collections: List[str] = Field(
-        default_factory=list,
-        description="Danh sách knowledge bases mặc định cho chat mới",
+
+    # Default language for chat
+    default_language: str = Field("vi", description="Ngôn ngữ mặc định")
+
+    # Default search settings
+    search_settings: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "k": 5,
+            "score_threshold": 0.3,
+        },
+        description="Settings cho search",
     )
 
-    # Prompt template settings
-    available_prompt_templates: List[PromptTemplateInfo] = Field(
-        default_factory=list,
-        description="Danh sách đầy đủ các prompt templates có thể sử dụng",
-    )
-    default_prompt_template_id: Optional[str] = Field(
-        None, description="ID của prompt template mặc định"
-    )
-
-    metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now().isoformat())
 
@@ -410,11 +379,5 @@ class GlobalSettings(BaseModel):
 class SettingsUpdate(BaseModel):
     """Model cho việc update settings"""
 
-    default_language: Optional[str] = None
     system_prompt: Optional[str] = None
-    llm_settings: Optional[Dict[str, Any]] = None
-    search_settings: Optional[Dict[str, Any]] = None
     available_collections: Optional[List[str]] = None
-    default_collections: Optional[List[str]] = None
-    default_prompt_template_id: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None

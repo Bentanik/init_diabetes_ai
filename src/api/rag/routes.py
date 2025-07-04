@@ -21,6 +21,7 @@ from fastapi import (
     Query,
     status,
     Depends,
+    Request,
 )
 from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -840,165 +841,31 @@ async def multi_collection_search(request: MultiCollectionSearchRequest):
 
 @router.post(
     "/prompt-templates/suggest",
-    response_model=PromptTemplateSuggestion,
+    response_model=str,
     summary="Gợi ý prompt template từ ý tưởng",
     description="Sử dụng LLM để gợi ý prompt template dựa trên ý tưởng của người dùng.",
 )
-async def suggest_prompt_template(idea: PromptTemplateIdea):
+async def suggest_prompt_template(request: Request):
     """
     Gợi ý prompt template từ ý tưởng.
     """
-
-    def extract_json(text: str) -> Optional[str]:
-        """Trích xuất JSON string từ text."""
-        try:
-            # Thử nhiều cách tìm JSON
-
-            # Cách 1: Tìm JSON object hoàn chỉnh
-            import re
-
-            json_pattern = r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
-            matches = re.findall(json_pattern, text, re.DOTALL)
-
-            for match in matches:
-                try:
-                    # Test nếu JSON hợp lệ
-                    json.loads(match)
-                    return match
-                except json.JSONDecodeError:
-                    continue
-
-            # Cách 2: Tìm bằng cặp dấu {} và clean up
-            start = text.find("{")
-            end = text.rfind("}")
-
-            if start != -1 and end != -1 and end > start:
-                json_str = text[start : end + 1]
-
-                # Clean up common issues
-                json_str = json_str.replace("\\n", "\n")
-                json_str = json_str.replace('\\"', '"')
-                json_str = json_str.replace("\n", "\\n")  # Re-escape for JSON
-
-                # Try to fix common JSON issues
-                lines = json_str.split("\n")
-                cleaned_lines = []
-                for line in lines:
-                    line = line.strip()
-                    if line and not line.startswith("//") and not line.startswith("#"):
-                        cleaned_lines.append(line)
-
-                json_str = "\n".join(cleaned_lines)
-
-                try:
-                    # Test if valid
-                    json.loads(json_str)
-                    return json_str
-                except json.JSONDecodeError:
-                    pass
-
-            # Cách 3: Tạo JSON mặc định nếu không tìm thấy
-            logger.warning(
-                f"Không tìm thấy JSON hợp lệ trong response, sử dụng default template"
-            )
-            return None
-
-        except Exception as e:
-            logger.error(f"Lỗi khi trích xuất JSON: {e}")
-            return None
-
-    def process_json_data(json_str: Optional[str], language: str) -> dict:
-        """Xử lý và validate JSON data."""
-        try:
-            # Nếu không có JSON string, sử dụng default
-            if not json_str:
-                logger.info("Sử dụng default template do không parse được JSON")
-                return DEFAULT_TEMPLATES[language]
-
-            data = json.loads(json_str)
-
-            required_fields = [
-                "suggested_template",
-                "suggested_name",
-                "suggested_description",
-                "detected_variables",
-                "example_values",
-            ]
-
-            # Nếu thiếu trường nào thì tạo giá trị mặc định
-            default_template = DEFAULT_TEMPLATES[language]
-            for field in required_fields:
-                if field not in data or not data[field]:
-                    data[field] = default_template[field]
-
-            # Validate và fix detected_variables
-            if not isinstance(data["detected_variables"], list):
-                data["detected_variables"] = []
-
-            # Tự động phát hiện biến từ template nếu cần
-            if not data["detected_variables"]:
-                variables = re.findall(
-                    r"\{\{(\w+)\}\}", str(data["suggested_template"])
-                )
-                data["detected_variables"] = list(set(variables))
-
-            # Validate và fix example_values
-            if not isinstance(data["example_values"], dict):
-                data["example_values"] = {}
-
-            # Tạo example values cho các biến nếu cần
-            for var in data["detected_variables"]:
-                if var not in data["example_values"]:
-                    data["example_values"][var] = (
-                        f"Giá trị mẫu cho {var}"
-                        if language == "vi"
-                        else f"Sample value for {var}"
-                    )
-
-            return data
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Lỗi parse JSON: {e}\nJSON content: {json_str}")
-            logger.info("Sử dụng default template do lỗi parse JSON")
-            return DEFAULT_TEMPLATES[language]
-        except Exception as e:
-            logger.error(f"Lỗi xử lý JSON data: {e}")
-            logger.info("Sử dụng default template do lỗi xử lý")
-            return DEFAULT_TEMPLATES[language]
-
     try:
-        # Validate language
-        if idea.language not in ["vi", "en"]:
-            raise ValueError("Language must be either 'vi' or 'en'")
+        # Get request body
+        body = await request.body()
+        idea = body.decode()
 
         # Get LLM response
         llm = get_llm()
         system_prompt = PROMPT_SUGGESTION_SYSTEM_TEMPLATE
-        user_prompt = f"""Ý tưởng: {idea.idea}
-
-Context bổ sung:
-{idea.context or "Không có"}"""
+        user_prompt = f"Ý tưởng: {idea}"
 
         full_prompt = f"{system_prompt}\n\n{user_prompt}"
         logger.info(f"Sending prompt to LLM:\n{full_prompt}")
 
-        response = await llm.generate(full_prompt)
-        logger.info(f"LLM response:\n{response}")
+        # Get template from LLM
+        template = await llm.generate(full_prompt)
+        return template.strip()
 
-        # Process response
-        json_str = extract_json(response)
-        suggestion_data = process_json_data(json_str, idea.language)
-
-        # Create suggestion object
-        suggestion = PromptTemplateSuggestion(
-            **suggestion_data, generation_time=datetime.now().isoformat()
-        )
-
-        return suggestion
-
-    except ValueError as e:
-        logger.error(f"Error suggesting prompt template: {e}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Error suggesting prompt template: {e}")
         raise HTTPException(
@@ -1026,15 +893,10 @@ async def get_settings(
             # Tạo default settings nếu chưa có
             default_settings = {
                 "id": "global",
-                "default_language": "vi",
                 "system_prompt": None,
-                "default_prompt_template_id": None,
-                "llm_settings": {"temperature": 0.7, "max_tokens": 2000},
-                "search_settings": {"k": 5, "score_threshold": 0.3},
                 "available_collections": [],
-                "default_collections": [],
-                "available_prompt_templates": [],
-                "metadata": {},
+                "default_language": "vi",
+                "search_settings": {"k": 5, "score_threshold": 0.3},
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat(),
             }
@@ -1053,34 +915,20 @@ async def get_settings(
                 logger.warning(f"Error parsing settings, using defaults: {e}")
                 # Fallback with manual creation
                 global_settings = GlobalSettings.construct(
-                    default_language=settings_doc.get("default_language", "vi"),
                     system_prompt=settings_doc.get("system_prompt"),
-                    default_prompt_template_id=settings_doc.get(
-                        "default_prompt_template_id"
-                    ),
-                    llm_settings=settings_doc.get(
-                        "llm_settings", {"temperature": 0.7, "max_tokens": 2000}
-                    ),
+                    available_collections=settings_doc.get("available_collections", []),
+                    default_language=settings_doc.get("default_language", "vi"),
                     search_settings=settings_doc.get(
                         "search_settings", {"k": 5, "score_threshold": 0.3}
-                    ),
-                    available_collections=settings_doc.get("available_collections", []),
-                    default_collections=settings_doc.get("default_collections", []),
-                    available_prompt_templates=settings_doc.get(
-                        "available_prompt_templates", []
                     ),
                 )
         else:
             # Tạo default GlobalSettings object
             global_settings = GlobalSettings.construct(
-                default_language="vi",
                 system_prompt=None,
-                default_prompt_template_id=None,
-                llm_settings={"temperature": 0.7, "max_tokens": 2000},
-                search_settings={"k": 5, "score_threshold": 0.3},
                 available_collections=[],
-                default_collections=[],
-                available_prompt_templates=[],
+                default_language="vi",
+                search_settings={"k": 5, "score_threshold": 0.3},
             )
 
         return global_settings
@@ -1140,6 +988,61 @@ async def update_settings(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi cập nhật settings: {str(e)}",
+        )
+
+
+@router.patch(
+    "/settings/system-prompt",
+    response_model=Dict[str, Any],
+    summary="Cập nhật system prompt",
+    description="Cập nhật system prompt mặc định trong global settings.",
+)
+async def update_system_prompt(
+    system_prompt: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """
+    Cập nhật system prompt mặc định.
+
+    - **system_prompt**: System prompt mới
+    """
+    try:
+        # Cập nhật system prompt trong global settings
+        result = await db["global_settings"].update_one(
+            {"id": "global"},
+            {
+                "$set": {
+                    "system_prompt": system_prompt,
+                    "updated_at": datetime.now().isoformat(),
+                }
+            },
+            upsert=True,
+        )
+
+        if result.matched_count == 0 and result.upserted_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Không thể cập nhật system prompt",
+            )
+
+        return {
+            "success": True,
+            "message": "Đã cập nhật system prompt thành công",
+            "system_prompt_preview": (
+                system_prompt[:100] + "..."
+                if len(system_prompt) > 100
+                else system_prompt
+            ),
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating system prompt: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi cập nhật system prompt: {str(e)}",
         )
 
 
@@ -1573,10 +1476,10 @@ async def chat(
         if not session_doc:
             # Tạo session mới với settings từ global
             chat_settings = ChatSettings(
-                collection_names=global_settings.default_collections,
-                prompt_template_id=global_settings.default_prompt_template_id,
-                temperature=global_settings.llm_settings.get("temperature", 0.7),
-                max_tokens=global_settings.llm_settings.get("max_tokens", 2000),
+                collection_names=global_settings.available_collections,
+                prompt_template_id=None,
+                temperature=0.7,
+                max_tokens=2000,
                 language=global_settings.default_language,
                 search_kwargs=global_settings.search_settings,
             )
@@ -1872,59 +1775,4 @@ async def delete_user_chat_session(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi xóa chat session: {str(e)}",
-        )
-
-
-@router.patch(
-    "/settings/system-prompt",
-    response_model=Dict[str, Any],
-    summary="Cập nhật system prompt",
-    description="Cập nhật system prompt mặc định trong global settings.",
-)
-async def update_system_prompt(
-    system_prompt: str,
-    db: AsyncIOMotorDatabase = Depends(get_db),
-):
-    """
-    Cập nhật system prompt mặc định.
-
-    - **system_prompt**: System prompt mới
-    """
-    try:
-        # Cập nhật system prompt trong global settings
-        result = await db["global_settings"].update_one(
-            {"id": "global"},
-            {
-                "$set": {
-                    "system_prompt": system_prompt,
-                    "updated_at": datetime.now().isoformat(),
-                }
-            },
-            upsert=True,
-        )
-
-        if result.matched_count == 0 and result.upserted_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Không thể cập nhật system prompt",
-            )
-
-        return {
-            "success": True,
-            "message": "Đã cập nhật system prompt thành công",
-            "system_prompt_preview": (
-                system_prompt[:100] + "..."
-                if len(system_prompt) > 100
-                else system_prompt
-            ),
-            "timestamp": datetime.now().isoformat(),
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating system prompt: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi khi cập nhật system prompt: {str(e)}",
         )

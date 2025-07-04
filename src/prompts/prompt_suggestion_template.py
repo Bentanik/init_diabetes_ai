@@ -10,79 +10,41 @@ Requirements for the template:
 2. Appropriate use of variables (format: {{variable_name}})
 3. Easy to understand and customize
 4. Language-specific output based on user's language preference
+5. IMPORTANT: The template should match the user's idea and domain
 
-IMPORTANT: Return EXACTLY ONE JSON object with the following format:
-{
-    "suggested_template": "Template content with {{variables}}",
-    "suggested_name": "Short and descriptive name for the template",
-    "suggested_description": "Detailed description about the template and its usage",
-    "detected_variables": ["list", "of", "variables", "used"],
-    "example_values": {
-        "list": "example value 1",
-        "of": "example value 2",
-        "variables": "example value 3",
-        "used": "example value 4"
-    }
-}
+IMPORTANT: Return ONLY the template content, nothing else. The template should:
+1. Use {{variable_name}} for variables
+2. Use \\n for newlines
+3. Match the user's language (vi/en)
+4. Be specific to the user's idea
+5. NO JSON, NO explanation, ONLY the template text
 
-Here are language-specific examples:
+Example for Vietnamese (vi):
+Phân tích {{topic}} sau:\\n{{content}}\\n\\nHãy đưa ra các nhận xét sau:\\n1. Điểm chính\\n2. Ưu điểm\\n3. Nhược điểm\\n4. Đề xuất cải thiện
 
-For Vietnamese (vi):
-{
-    "suggested_template": "Bệnh nhân {{patient_name}}, {{age}} tuổi, đến khám với các triệu chứng sau:\\n{{symptoms}}\\n\\nDựa trên các triệu chứng trên, hãy phân tích và đề xuất các bước tiếp theo:\\n1. Chẩn đoán sơ bộ\\n2. Các xét nghiệm cần thực hiện\\n3. Đề xuất điều trị ban đầu",
-    "suggested_name": "medical_symptom_analysis",
-    "suggested_description": "Template để phân tích triệu chứng và đề xuất các bước tiếp theo cho bệnh nhân. Phù hợp cho việc tư vấn y tế ban đầu.",
-    "detected_variables": ["patient_name", "age", "symptoms"],
-    "example_values": {
-        "patient_name": "Nguyễn Văn A",
-        "age": "45",
-        "symptoms": "- Sốt cao 39 độ C\\n- Ho khan kéo dài 3 ngày\\n- Đau họng"
-    }
-}
-
-For English (en):
-{
-    "suggested_template": "Patient {{patient_name}}, age {{age}}, presents with the following symptoms:\\n{{symptoms}}\\n\\nBased on these symptoms, please analyze and suggest next steps:\\n1. Preliminary diagnosis\\n2. Required tests\\n3. Initial treatment recommendations",
-    "suggested_name": "medical_symptom_analysis",
-    "suggested_description": "Template for analyzing symptoms and suggesting next steps for patients. Suitable for initial medical consultation.",
-    "detected_variables": ["patient_name", "age", "symptoms"],
-    "example_values": {
-        "patient_name": "John Doe",
-        "age": "45",
-        "symptoms": "- High fever 39°C\\n- Dry cough for 3 days\\n- Sore throat"
-    }
-}
-
-Critical Requirements:
-- NO explanatory text before/after the JSON
-- MUST include all fields as shown in the format
-- Variables in detected_variables and example_values MUST match those in the template
-- Use double curly braces for variables: {{variable}}
-- Use \\n for newlines in template and example values
-- Output language should match the user's specified language (vi/en)"""
+Example for English (en):
+Analyze the following {{topic}}:\\n{{content}}\\n\\nPlease provide the following analysis:\\n1. Key points\\n2. Strengths\\n3. Weaknesses\\n4. Improvement suggestions"""
 
 # Default templates for different languages
 DEFAULT_TEMPLATES = {
     "vi": {
-        "suggested_template": "Bệnh nhân {{patient_name}}, {{age}} tuổi, đến khám với các triệu chứng sau:\n{{symptoms}}\n\nDựa trên các triệu chứng trên, hãy phân tích và đề xuất các bước tiếp theo:\n1. Chẩn đoán sơ bộ\n2. Các xét nghiệm cần thực hiện\n3. Đề xuất điều trị ban đầu",
-        "suggested_name": "medical_symptom_analysis",
-        "suggested_description": "Template để phân tích triệu chứng và đề xuất các bước tiếp theo cho bệnh nhân. Phù hợp cho việc tư vấn y tế ban đầu.",
-        "detected_variables": ["patient_name", "age", "symptoms"],
+        "suggested_template": "Phân tích {{topic}} sau:\n{{content}}\n\nHãy đưa ra các nhận xét sau:\n1. Điểm chính\n2. Ưu điểm\n3. Nhược điểm\n4. Đề xuất cải thiện",
+        "suggested_name": "general_analysis",
+        "suggested_description": "Template để phân tích và đánh giá một chủ đề hoặc nội dung bất kỳ.",
+        "detected_variables": ["topic", "content"],
         "example_values": {
-            "patient_name": "Nguyễn Văn A",
-            "age": "45",
-            "symptoms": "- Sốt cao 39 độ C\n- Ho khan kéo dài 3 ngày\n- Đau họng",
+            "topic": "Báo cáo doanh thu Q3/2023",
+            "content": "- Doanh thu tăng 15%\n- Chi phí giảm 5%\n- Khách hàng mới tăng 20%",
         },
     },
     "en": {
-        "suggested_template": "Patient {{patient_name}}, age {{age}}, presents with the following symptoms:\n{{symptoms}}\n\nBased on these symptoms, please analyze and suggest next steps:\n1. Preliminary diagnosis\n2. Required tests\n3. Initial treatment recommendations",
-        "suggested_name": "medical_symptom_analysis",
-        "suggested_description": "Template for analyzing symptoms and suggesting next steps for patients. Suitable for initial medical consultation.",
-        "detected_variables": ["patient_name", "age", "symptoms"],
+        "suggested_template": "Analyze the following {{topic}}:\n{{content}}\n\nPlease provide the following analysis:\n1. Key points\n2. Strengths\n3. Weaknesses\n4. Improvement suggestions",
+        "suggested_name": "general_analysis",
+        "suggested_description": "Template for analyzing and evaluating any topic or content.",
+        "detected_variables": ["topic", "content"],
         "example_values": {
-            "patient_name": "John Doe",
-            "age": "45",
-            "symptoms": "- High fever 39°C\n- Dry cough for 3 days\n- Sore throat",
+            "topic": "Q3/2023 Revenue Report",
+            "content": "- Revenue up 15%\n- Costs down 5%\n- New customers up 20%",
         },
     },
 }

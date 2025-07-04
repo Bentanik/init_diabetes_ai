@@ -8,7 +8,6 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-# env/
 build/
 develop-eggs/
 dist/
@@ -89,12 +88,6 @@ Desktop.ini
 
 # Conda
 .conda/
-
-# Local env
-# .env
-# .venv
-# ENV/
-# venv/
 
 # Ignore metadata
 *.pdb
